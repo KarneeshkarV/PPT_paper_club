@@ -7,6 +7,11 @@
   --fg: #f0ebe3;
   --dim: #8e857a;
   --accent: #e0a54a;
+  /* Semantic trio for accept / reject / target-supplied, tuned to the warm ground.
+     Site-wide tokens: any deck that shows a pass-fail state uses these three. */
+  --ok: #7fae7a;
+  --no: #c8705c;
+  --cool: #8aa6c8;
   --display: "Fraunces", "Iowan Old Style", Georgia, serif;
   --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }

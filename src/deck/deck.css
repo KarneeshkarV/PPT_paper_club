@@ -79,7 +79,7 @@ body[data-deck] { overflow: hidden; }
 .card h3 { margin-bottom: .45rem; font-style: normal; color: var(--fg); }
 .figure { display: grid; gap: .6rem; }
 .figure img { width: 100%; height: auto; border: 1px solid var(--line); }
-figcaption, .caption {
+.slide figcaption, .slide .caption {
   font-family: var(--mono);
   font-size: .7rem;
   letter-spacing: .12em;
@@ -168,6 +168,209 @@ body[data-overview] .slide {
 }
 body[data-overview] .slide > * { animation: none; }
 body[data-overview] .slide[data-active] { outline: 2px solid var(--accent); }
+
+
+/* Title art: full-bleed vector layer behind the opening slide. */
+.slide-art {
+  position: absolute;
+  left: 0; right: 0;
+  top: 40%;
+  z-index: 0;
+  height: clamp(8rem, 24vh, 14rem);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.slide-art__tick { fill: var(--dim); opacity: .16; animation: tick-breathe 6s ease-in-out infinite; animation-delay: var(--d, 0ms); }
+.slide-art__tick--ok { fill: var(--accent); opacity: .5; }
+.slide-art__tick--no { fill: var(--no); opacity: .42; }
+.slide-art__rule { stroke: var(--line); stroke-width: 1; }
+/* The band is drawn twice, end to end, so one 1320-unit shift loops seamlessly. */
+.slide-art__scroll { animation: art-scroll 36s linear infinite; }
+.slide--title > *:not(.slide-art) { position: relative; z-index: 1; }
+
+@keyframes art-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-1320px); }
+}
+
+@keyframes tick-breathe {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(1.22); }
+}
+.slide-art__tick { transform-box: fill-box; transform-origin: center; }
+
+/* ---------- Animated figures ----------
+   Step-driven diagrams. A figure owns a step counter; every element reads its
+   own state from that step and transitions into it. Shared by every deck. */
+.fig { display: grid; gap: .9rem; }
+.fig-stage {
+  display: grid;
+  gap: .75rem;
+  padding: clamp(.9rem, 2vw, 1.5rem);
+  background: var(--raise);
+  border: 1px solid var(--line);
+}
+.fig-row { display: grid; grid-template-columns: 9.5rem 1fr; gap: .9rem; align-items: center; }
+.fig-row__label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--dim);
+  text-align: right;
+}
+.fig-track { display: flex; flex-wrap: wrap; gap: .45rem; align-items: center; min-height: 2.3rem; }
+.fig-hr { height: 1px; background: var(--line); }
+
+/* One token, gate, or slot. `data-state` drives every visual difference. */
+.tok {
+  --tone: var(--dim);
+  font-family: var(--mono);
+  font-size: clamp(.68rem, 1.1vw, .86rem);
+  line-height: 1;
+  padding: .52rem .72rem;
+  border: 1px solid var(--line);
+  color: var(--dim);
+  background: transparent;
+  white-space: nowrap;
+  opacity: .28;
+  transform: translateY(5px);
+  transition: opacity .4s ease, transform .4s cubic-bezier(.2,.7,.2,1),
+              border-color .4s ease, color .4s ease, background-color .4s ease;
+}
+.tok[data-state] { opacity: 1; transform: none; }
+.tok[data-state="draft"]  { --tone: var(--accent); border-color: color-mix(in oklab, var(--accent) 55%, var(--line)); color: var(--fg); }
+.tok[data-state="ok"]     { --tone: var(--ok);   border-color: var(--ok);   color: var(--ok); }
+.tok[data-state="bad"]    { --tone: var(--no);   border-color: var(--no);   color: var(--no); }
+.tok[data-state="target"] { --tone: var(--cool); border-color: var(--cool); color: var(--cool); }
+.tok[data-state="done"]   { --tone: var(--fg);  border-color: var(--line);  color: var(--fg); background: color-mix(in oklab, var(--fg) 7%, transparent); }
+.tok[data-state="drop"]   { opacity: .3; text-decoration: line-through; }
+.tok[data-state="mask"]   { border-style: dashed; color: var(--dim); }
+.tok--wide { min-width: 5.4rem; text-align: center; }
+.tok--now  { box-shadow: 0 0 0 1px var(--tone); }
+
+.fig-sep { font-family: var(--mono); font-size: .8rem; color: var(--dim); opacity: .5; }
+.slide .fig-note { font-family: var(--mono); font-size: clamp(.72rem, 1.05vw, .86rem); line-height: 1.5; max-width: 90ch; letter-spacing: .1em; color: var(--dim); min-height: 1.1rem; }
+.slide .fig-note b { color: var(--accent); font-weight: 400; }
+
+/* Controls: Back / Pause / Next, plus a step read-out. Cursor-blog pacing. */
+.fig-controls {
+  display: flex;
+  align-items: center;
+  gap: .85rem;
+  font-family: var(--mono);
+  font-size: .64rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.fig-controls button {
+  font: inherit; letter-spacing: inherit; text-transform: inherit;
+  color: inherit; background: none; border: 0; padding: 0; cursor: pointer;
+}
+.fig-controls button:hover:not(:disabled) { color: var(--accent); }
+.fig-controls button:disabled { opacity: .35; cursor: default; }
+.fig-controls [aria-pressed="true"] { color: var(--accent); }
+.fig-controls__spacer { flex: 1; }
+.fig-controls__count { color: var(--fg); }
+.fig-controls__count b { color: var(--accent); font-weight: 500; }
+
+/* Lane comparison: two stacked timelines sharing one tick counter. */
+.fig-lanes { display: grid; gap: .65rem; }
+.fig-lane { display: grid; grid-template-columns: 9.5rem 1fr auto; gap: .9rem; align-items: center; }
+.fig-lane__cost { font-family: var(--mono); font-size: .66rem; color: var(--dim); white-space: nowrap; }
+.fig-lane__cost b { color: var(--accent); font-weight: 400; }
+
+/* Bar chart. Heights are set inline; the transition does the animating. */
+.fig-chart { display: grid; gap: .7rem; }
+.fig-groups { display: grid; grid-template-columns: repeat(4, 1fr); gap: clamp(.8rem, 2vw, 1.8rem); align-items: end; }
+.fig-group { display: grid; gap: .5rem; }
+/* Each bar is a full-height column; the fill grows from the bottom, so its
+   percentage height needs a definite parent - hence align-items: stretch. */
+.fig-bars { display: flex; align-items: stretch; gap: .3rem; height: clamp(7rem, 24vh, 13rem); }
+.fig-bar { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: flex-end; gap: .25rem; }
+.fig-bar__val {
+  font-family: var(--mono);
+  font-size: .6rem;
+  color: var(--dim);
+  text-align: center;
+  white-space: nowrap;
+}
+.fig-bar__fill {
+  height: 0;
+  min-height: 1px;
+  background: var(--tone, var(--dim));
+  transition: height .7s cubic-bezier(.2,.7,.2,1);
+  transition-delay: calc(var(--i, 0) * 60ms);
+}
+.fig-group__name {
+  font-family: var(--mono); font-size: .62rem; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--dim); border-top: 1px solid var(--line); padding-top: .4rem;
+}
+.fig-legend { display: flex; flex-wrap: wrap; gap: .9rem; font-family: var(--mono); font-size: .62rem; letter-spacing: .1em; color: var(--dim); }
+.fig-legend span { display: inline-flex; align-items: center; gap: .35rem; }
+.fig-legend i { width: .65rem; height: .65rem; background: var(--tone); }
+.fig-pick { display: flex; flex-wrap: wrap; gap: .5rem .9rem; font-family: var(--mono); font-size: .62rem; letter-spacing: .08em; }
+.fig-pick button {
+  font: inherit; letter-spacing: inherit; cursor: pointer;
+  background: none; border: 0; padding: 0 0 .15rem;
+  color: var(--dim); border-bottom: 1px solid transparent;
+}
+.fig-pick button:hover { color: var(--fg); }
+.fig-pick [aria-pressed="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* Causal mask grid. One square per (query, key) pair. */
+.fig-mask {
+  display: grid;
+  grid-template-columns: 5.5rem repeat(4, minmax(0, 1fr));
+  gap: .3rem;
+  font-family: var(--mono);
+  font-size: .66rem;
+  max-width: 34rem;
+}
+.fig-mask__head { color: var(--dim); letter-spacing: .08em; text-align: center; }
+.fig-mask__head--row { text-align: right; }
+.fig-mask__cell {
+  display: grid; place-items: center;
+  min-height: 1.9rem;
+  border: 1px solid var(--line);
+  color: var(--dim);
+  opacity: .35;
+  transition: opacity .4s ease, color .4s ease, border-color .4s ease, background-color .4s ease;
+}
+.fig-mask__cell[data-on] {
+  opacity: 1; color: var(--ok); border-color: var(--ok);
+  background: color-mix(in oklab, var(--ok) 10%, transparent);
+}
+.fig-mask__cell[data-off] { opacity: 1; color: var(--no); border-color: color-mix(in oklab, var(--no) 45%, var(--line)); }
+
+/* Draft against target probability for one token. */
+.fig-prob {
+  display: grid;
+  grid-template-columns: 2.2rem 1fr 4.5rem 1fr 4.5rem;
+  gap: .6rem;
+  align-items: center;
+  font-family: var(--mono);
+  font-size: .66rem;
+  color: var(--dim);
+}
+.fig-prob__name { color: var(--fg); }
+.fig-prob__bar { height: .7rem; border: 1px solid var(--line); }
+.fig-prob__bar i { display: block; height: 100%; width: 0; transition: width .6s cubic-bezier(.2,.7,.2,1); }
+
+/* A light plate, for figures that were authored on white. */
+.plate {
+  background: #f4f1ec;
+  border: 1px solid var(--line);
+  padding: clamp(.8rem, 2vw, 1.4rem);
+}
+/* Bound the height too, so a tall figure cannot push the slide into scrolling. */
+.plate img { width: 100%; height: auto; max-height: 54vh; object-fit: contain; border: 0; display: block; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tok, .fig-bar__fill, .fig-mask__cell, .fig-prob__bar i { transition: none !important; }
+  .slide-art__scroll { animation: none; }
+}
 
 @media print {
   body[data-deck] { overflow: visible; }

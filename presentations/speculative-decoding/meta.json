@@ -1,0 +1,7 @@
+{
+  "title": "Speculative Decoding",
+  "summary": "Draft-and-verify decoding: five drafting methods, what each one takes from the target model, and what they measured on AMD Instinct GPUs.",
+  "speaker": "Karneeshkar",
+  "date": "2026-09-12",
+  "tags": ["inference", "serving", "vllm", "speculative-decoding"]
+}
