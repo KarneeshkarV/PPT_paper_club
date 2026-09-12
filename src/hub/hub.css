@@ -1,0 +1,255 @@
+/* Paper Club hub — printed-journal aesthetic: warm paper, ink rules, vermilion folios. */
+:root {
+  --paper: #efe9dc;
+  --paper-deep: #e6dfcf;
+  --ink: #17140f;
+  --ink-soft: #5b5449;
+  --rule: #17140f;
+  --accent: #bf3b12;
+  --display: "Fraunces", "Iowan Old Style", Georgia, serif;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --page: min(72rem, 100% - 3rem);
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+html {
+  background: var(--paper);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  padding: 0 0 5rem;
+  background:
+    radial-gradient(120% 80% at 50% -10%, #f7f2e6 0%, transparent 60%),
+    var(--paper);
+  color: var(--ink);
+  font-family: var(--display);
+  font-optical-sizing: auto;
+  font-variation-settings: "SOFT" 0, "WONK" 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Paper grain, fixed above the background but below content. */
+.grain {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: .32;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/><feColorMatrix type='saturate' values='0'/></filter><rect width='160' height='160' filter='url(%23n)' opacity='.5'/></svg>");
+}
+
+body > *:not(.grain) { position: relative; z-index: 1; }
+
+/* ---------- Masthead ---------- */
+.masthead {
+  width: var(--page);
+  margin: 0 auto;
+  padding-top: 3.5rem;
+  animation: rise .7s cubic-bezier(.2, .7, .2, 1) both;
+}
+.masthead__rule { height: 6px; background: var(--rule); }
+.masthead__rule--thin { height: 1px; margin-top: 2.25rem; }
+.masthead__kicker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .6rem;
+  margin: .7rem 0 1.6rem;
+  font-family: var(--mono);
+  font-size: .72rem;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.dot { color: var(--accent); }
+.masthead__title {
+  margin: 0;
+  font-size: clamp(3.4rem, 13vw, 9.5rem);
+  font-weight: 300;
+  line-height: .82;
+  letter-spacing: -.045em;
+  font-variation-settings: "SOFT" 12, "WONK" 1;
+}
+.masthead__amp {
+  color: var(--accent);
+  font-style: italic;
+  font-weight: 600;
+  padding: 0 .06em;
+}
+.masthead__lede {
+  max-width: 34ch;
+  margin: 1.4rem 0 0 auto;
+  text-align: right;
+  font-size: clamp(1rem, 1.6vw, 1.2rem);
+  font-style: italic;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
+/* ---------- Toolbar ---------- */
+.toolbar {
+  width: var(--page);
+  margin: 1.6rem auto 2.6rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  animation: rise .7s .08s cubic-bezier(.2, .7, .2, 1) both;
+}
+.field { display: flex; align-items: baseline; gap: .9rem; flex: 1 1 22rem; }
+.field__label {
+  font-family: var(--mono);
+  font-size: .7rem;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.field input {
+  flex: 1;
+  min-width: 0;
+  padding: .45rem 0;
+  font: 400 1.05rem/1.3 var(--display);
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+}
+.field input::placeholder { color: #9c9384; font-style: italic; }
+.field input:focus { outline: none; border-bottom-color: var(--accent); }
+.toolbar__count {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: .72rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+/* ---------- Index list ---------- */
+.index { width: var(--page); margin: 0 auto; border-top: 1px solid var(--rule); }
+
+.entry {
+  --lift: 0;
+  display: grid;
+  grid-template-columns: 5.5rem 1fr auto;
+  align-items: baseline;
+  gap: 0 1.5rem;
+  padding: 1.6rem 0 1.5rem;
+  border-bottom: 1px solid rgba(23, 20, 15, .25);
+  color: inherit;
+  text-decoration: none;
+  position: relative;
+  isolation: isolate;
+  animation: rise .6s cubic-bezier(.2, .7, .2, 1) both;
+  animation-delay: calc(var(--i, 0) * 55ms + .16s);
+}
+.entry::before {
+  content: "";
+  position: absolute;
+  inset: -.1rem -1.25rem;
+  z-index: -1;
+  background: var(--paper-deep);
+  opacity: 0;
+  transition: opacity .2s ease;
+}
+.entry:hover::before, .entry:focus-visible::before { opacity: 1; }
+.entry:focus-visible { outline: 2px solid var(--accent); outline-offset: .4rem; }
+
+.entry__folio {
+  font-family: var(--mono);
+  font-size: .78rem;
+  letter-spacing: .1em;
+  color: var(--accent);
+  padding-top: .35rem;
+}
+.entry__body { min-width: 0; }
+.entry__title {
+  margin: 0;
+  font-size: clamp(1.35rem, 3vw, 2.1rem);
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: -.02em;
+  text-wrap: balance;
+}
+.entry:hover .entry__title { font-variation-settings: "SOFT" 10, "WONK" 1; font-style: italic; }
+.entry__sub {
+  margin: .5rem 0 0;
+  max-width: 62ch;
+  font-size: .98rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+.entry__meta {
+  margin: .75rem 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .45rem .8rem;
+  font-family: var(--mono);
+  font-size: .7rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.tag { border-bottom: 1px solid rgba(191, 59, 18, .5); padding-bottom: .1rem; }
+.entry__open {
+  align-self: center;
+  font-family: var(--mono);
+  font-size: .72rem;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition: transform .2s cubic-bezier(.2, .7, .2, 1);
+}
+.entry:hover .entry__open { transform: translateX(.35rem); color: var(--accent); }
+
+.empty {
+  padding: 3.5rem 0;
+  font-style: italic;
+  font-size: 1.15rem;
+  color: var(--ink-soft);
+}
+.empty code {
+  font-family: var(--mono);
+  font-size: .82em;
+  font-style: normal;
+  background: var(--paper-deep);
+  padding: .1rem .35rem;
+}
+
+/* ---------- Colophon ---------- */
+.colophon {
+  width: var(--page);
+  margin: 3rem auto 0;
+  padding-top: 1rem;
+  border-top: 6px solid var(--rule);
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-family: var(--mono);
+  font-size: .7rem;
+  letter-spacing: .1em;
+  color: var(--ink-soft);
+}
+.colophon code { font-size: .95em; color: var(--ink); }
+.colophon__mark { color: var(--accent); }
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (max-width: 40rem) {
+  .entry { grid-template-columns: 3rem 1fr; }
+  .entry__open { grid-column: 2; margin-top: .8rem; }
+  .masthead__lede { text-align: left; margin-left: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before { animation: none !important; transition: none !important; }
+}
