@@ -24,10 +24,13 @@ src/hub/Hub.jsx + hub.css      The index page.
 src/deck/Deck.jsx              Slide runner: keys, overview, progress, deck bar.
 src/deck/Slide.jsx             One slide. Takes `variant="title"`.
 src/deck/deck.css              Slide typography and chrome.
+src/deck/content.jsx           Renders a deck's content.js into slides. Inline **bold** and `code`.
 templates/deck/                Template copied by the scaffold script.
 scripts/new-presentation.js    Scaffold script for a new deck.
 presentations/<slug>/
-  deck.jsx                     The deck: <Deck> with one <Slide> per slide.
+  content.js                   Every word on the deck. This is the file to edit.
+  deck.jsx                     Renderer: maps figure and image ids to components.
+  figures.jsx                  Animated figures for that deck, when it has any.
   meta.json                    Deck metadata read by the hub.
   assets/                      Images and files for that deck only.
 ```
@@ -36,7 +39,7 @@ presentations/<slug>/
 
 1. Add a deck with `pnpm new "Paper title"`.
    Do not create the folder by hand.
-   The scaffold makes `deck.jsx` and `meta.json` from `templates/deck/`.
+   The scaffold makes `content.js`, `deck.jsx` and `meta.json` from `templates/deck/`.
 2. Never edit the hub or a route to register a deck.
    `src/decks.js` finds decks with `import.meta.glob` over `/presentations/*/meta.json` and `/presentations/*/deck.jsx`.
    A deck needs both files, or it does not appear.
@@ -45,19 +48,28 @@ presentations/<slug>/
 4. A deck file exports one default component that returns `<Deck>` with `<Slide>` children.
    Import them from `../../src/deck/Deck.jsx`.
    Do not write your own slide runner, key handler or router for a deck.
-5. Do not pass `active` or `onSelect` to `<Slide>`; `<Deck>` sets them.
+5. Text and layout stay apart. Every word a viewer reads lives in `presentations/<slug>/content.js`,
+   including the captions, row labels and step notes inside animated figures.
+   `deck.jsx` holds no prose: it calls `renderSlides(content, FIGURES, ASSETS)` from
+   `src/deck/content.jsx` and maps each figure or image id to a component or an import.
+   A figure component takes its words as props (`caption`, `notes`, `labels`); it never
+   hard-codes a sentence.
+   Strings support `**bold**` and `` `code` ``. A slide renders its fields in a fixed order:
+   kicker, h1, h2, quote, rule, figure | image | code | table, bullets, cards, body, caption, sub.
+   Need a field the renderer does not have? Add it to `src/deck/content.jsx` for every deck.
+6. Do not pass `active` or `onSelect` to `<Slide>`; `<Deck>` sets them.
    Keep slides as direct children of `<Deck>`, because `<Deck>` counts them with `Children.toArray`.
-6. Slide content classes come from `src/deck/deck.css`:
+7. Slide content classes come from `src/deck/deck.css`:
    `kicker`, `rule`, `cols`, `card`, `figure`, `caption`.
    Plain `h1` `h2` `h3` `p` `ul` `blockquote` `table` `pre` are already styled.
    Do not add per-deck CSS files; if a style is worth having, put it in `deck.css` for every deck.
-7. Keep every deck asset inside its own folder and import it, for example
+8. Keep every deck asset inside its own folder and import it, for example
    `import figure from './assets/figure-1.png'`.
    Put shared files in `public/`.
-8. Routing stays hash based (`/#/<slug>?s=<slide>`) and `base` stays `'./'` in `vite.config.js`.
+9. Routing stays hash based (`/#/<slug>?s=<slide>`) and `base` stays `'./'` in `vite.config.js`.
    Together they let the build run from any sub-path with no server rules.
    Do not switch to `BrowserRouter` or an absolute base.
-9. Do not commit `dist/`, and do not edit files in it.
+10. Do not commit `dist/`, and do not edit files in it.
 
 ## Design system
 

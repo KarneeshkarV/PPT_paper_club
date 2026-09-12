@@ -5,6 +5,7 @@
  * Styling lives in src/deck/deck.css (.fig, .tok, .fig-bar ...).
  */
 import { Fragment, useCallback, useEffect, useState } from 'react'
+import { rich } from '../../src/deck/content.jsx'
 
 const prefersReduced = () =>
   typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
@@ -40,6 +41,9 @@ function Controls({ step, total, playing, setPlaying, go, caption }) {
   )
 }
 
+/** Notes are a plain array in content.js; a short array just holds its last line. */
+const noteAt = (notes, step) => (notes?.length ? notes[Math.min(step, notes.length - 1)] : '')
+
 const Tok = ({ state, now, wide, children }) => (
   <span className={['tok', wide ? 'tok--wide' : '', now ? 'tok--now' : ''].filter(Boolean).join(' ')}
         data-state={state || undefined}>{children}</span>
@@ -48,14 +52,14 @@ const Tok = ({ state, now, wide, children }) => (
 /* ------------------------------------------------------------------ */
 /* The autoregressive baseline: one committed token per target pass.   */
 /* ------------------------------------------------------------------ */
-export function BaselineLoop() {
+export function BaselineLoop({ caption, notes, labels = {} }) {
   const { step, ...c } = useSteps(4, 900)
   const out = ['T1', 'T2', 'T3', 'T4']
   return (
     <div className="fig">
       <div className="fig-stage">
         <div className="fig-row">
-          <span className="fig-row__label">sequence</span>
+          <span className="fig-row__label">{labels.sequence}</span>
           <div className="fig-track">
             <Tok state="done">context</Tok>
             {out.map((t, i) => <Tok key={t} state={i <= step ? 'done' : undefined} now={i === step}>{t}</Tok>)}
@@ -63,7 +67,7 @@ export function BaselineLoop() {
         </div>
         <div className="fig-hr" />
         <div className="fig-row">
-          <span className="fig-row__label">target passes</span>
+          <span className="fig-row__label">{labels.passes}</span>
           <div className="fig-track">
             {out.map((t, i) => (
               <Tok key={t} state={i <= step ? 'draft' : undefined} wide>pass {i + 1}</Tok>
@@ -71,10 +75,8 @@ export function BaselineLoop() {
           </div>
         </div>
       </div>
-      <p className="fig-note">
-        {step + 1} committed token{step ? 's' : ''} · <b>{step + 1} target-model pass{step ? 'es' : ''}</b> · one pass per token, always
-      </p>
-      <Controls step={step} {...c} caption="Autoregressive decoding" />
+      <p className="fig-note">{rich(noteAt(notes, step))}</p>
+      <Controls step={step} {...c} caption={caption} />
     </div>
   )
 }
@@ -82,7 +84,7 @@ export function BaselineLoop() {
 /* ------------------------------------------------------------------ */
 /* One speculative round: draft, verify left to right, commit.        */
 /* ------------------------------------------------------------------ */
-export function VerifyRound({ prompt, drafts, acceptUpTo, replacement, caption }) {
+export function VerifyRound({ prompt, drafts, acceptUpTo, replacement, caption, notes, labels = {}, words = {} }) {
   const total = drafts.length + 3
   const { step, ...c } = useSteps(total, 1000)
 
@@ -97,54 +99,45 @@ export function VerifyRound({ prompt, drafts, acceptUpTo, replacement, caption }
     if (i === acceptUpTo) return 'bad'
     return 'drop'
   }
-  const notes = [
-    'The target model has just committed a token.',
-    'The draft component proposes several future tokens. Nothing is committed yet.',
-    'One target-model pass scores every candidate position at once.',
-  ]
-  const note = step < 3
-    ? notes[step]
-    : committed
-      ? 'Accepted tokens commit. The target token replaces the first rejection, and the rest go nowhere.'
-      : 'Verification runs left to right and stops at the first rejection.'
+  const note = committed ? notes?.[notes.length - 1] : noteAt(notes?.slice(0, -1), step)
 
   return (
     <div className="fig">
       <div className="fig-stage">
         <div className="fig-row">
-          <span className="fig-row__label">prompt</span>
+          <span className="fig-row__label">{labels.prompt}</span>
           <div className="fig-track"><Tok state="done">{prompt}</Tok></div>
         </div>
         <div className="fig-row">
-          <span className="fig-row__label">draft proposes</span>
+          <span className="fig-row__label">{labels.propose}</span>
           <div className="fig-track">
             {drafts.map((d, i) => <Tok key={d + i} state={proposed ? 'draft' : undefined}>{d}</Tok>)}
           </div>
         </div>
         <div className="fig-row">
-          <span className="fig-row__label">target verifies</span>
+          <span className="fig-row__label">{labels.verify}</span>
           <div className="fig-track">
             {drafts.map((d, i) => (
               <Tok key={d + i} state={verifying ? verdict(i) : undefined} now={i === checked - 1} wide>
-                {verdict(i) === 'ok' ? 'accept' : verdict(i) === 'bad' ? 'reject' : verdict(i) === 'drop' ? 'discard' : '·'}
+                {verdict(i) === 'ok' ? words.accept : verdict(i) === 'bad' ? words.reject : verdict(i) === 'drop' ? words.discard : '·'}
               </Tok>
             ))}
           </div>
         </div>
         <div className="fig-hr" />
         <div className="fig-row">
-          <span className="fig-row__label">commit</span>
+          <span className="fig-row__label">{labels.commit}</span>
           <div className="fig-track">
             {drafts.map((d, i) => {
               if (!committed) return <Tok key={d + i}>·</Tok>
               if (i < acceptUpTo) return <Tok key={d + i} state="ok">{d}</Tok>
               if (i === acceptUpTo) return <Tok key={d + i} state="target">{replacement}</Tok>
-              return <Tok key={d + i} state="drop">—</Tok>
+              return <Tok key={d + i} state="drop">-</Tok>
             })}
           </div>
         </div>
       </div>
-      <p className="fig-note">{note}</p>
+      <p className="fig-note">{rich(note)}</p>
       <Controls step={step} {...c} caption={caption} />
     </div>
   )
@@ -153,7 +146,7 @@ export function VerifyRound({ prompt, drafts, acceptUpTo, replacement, caption }
 /* ------------------------------------------------------------------ */
 /* Sequential drafting against parallel drafting, on one clock.        */
 /* ------------------------------------------------------------------ */
-export function SeqVsParallel() {
+export function SeqVsParallel({ caption, notes, labels = {} }) {
   const { step, ...c } = useSteps(5, 850)
   const n = 4
   const seqDone = step
@@ -163,7 +156,7 @@ export function SeqVsParallel() {
       <div className="fig-stage">
         <div className="fig-lanes">
           <div className="fig-lane">
-            <span className="fig-row__label">sequential</span>
+            <span className="fig-row__label">{labels.sequential}</span>
             <div className="fig-track">
               {Array.from({ length: n }, (_, i) => (
                 <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: '.45rem' }}>
@@ -172,31 +165,28 @@ export function SeqVsParallel() {
                 </span>
               ))}
             </div>
-            <span className="fig-lane__cost">MTP · EAGLE-3 — <b>{seqDone || 0}</b> draft passes</span>
+            <span className="fig-lane__cost">{labels.seqCost} <b>{seqDone || 0}</b> {labels.passes}</span>
           </div>
           <div className="fig-lane">
-            <span className="fig-row__label">parallel</span>
+            <span className="fig-row__label">{labels.parallel}</span>
             <div className="fig-track">
               {Array.from({ length: n }, (_, i) => (
                 <Tok key={i} state={i < parDone ? 'draft' : undefined}>draft {i + 1}</Tok>
               ))}
             </div>
-            <span className="fig-lane__cost">DFlash · DSpark — <b>{step >= 1 ? 1 : 0}</b> draft pass</span>
+            <span className="fig-lane__cost">{labels.parCost} <b>{step >= 1 ? 1 : 0}</b> {labels.pass}</span>
           </div>
         </div>
         <div className="fig-hr" />
         <div className="fig-row">
-          <span className="fig-row__label">draft clock</span>
+          <span className="fig-row__label">{labels.clock}</span>
           <div className="fig-track">
             {Array.from({ length: n }, (_, i) => <Tok key={i} state={i < step ? 'done' : undefined} wide>tick {i + 1}</Tok>)}
           </div>
         </div>
       </div>
-      <p className="fig-note">
-        Both proposals reach the same verification pass. Parallel drafting gets there in one forward pass,
-        but a later position never sees the token picked at an earlier one.
-      </p>
-      <Controls step={step} {...c} caption="Sequential vs parallel drafting" />
+      <p className="fig-note">{rich(noteAt(notes, step))}</p>
+      <Controls step={step} {...c} caption={caption} />
     </div>
   )
 }
@@ -204,48 +194,44 @@ export function SeqVsParallel() {
 /* ------------------------------------------------------------------ */
 /* A DFlash draft block: confirmed anchor, then masked positions.      */
 /* ------------------------------------------------------------------ */
-export function DFlashBlock() {
+export function DFlashBlock({ caption, notes, labels = {} }) {
   const { step, ...c } = useSteps(3, 1200)
   const slots = [0, 1, 2, 3, 4, 5, 6]
   return (
     <div className="fig">
       <div className="fig-stage">
         <div className="fig-row">
-          <span className="fig-row__label">position</span>
+          <span className="fig-row__label">{labels.position}</span>
           <div className="fig-track">{slots.map((i) => <Tok key={i} state="done" wide>{i}</Tok>)}</div>
         </div>
         <div className="fig-row">
-          <span className="fig-row__label">input</span>
+          <span className="fig-row__label">{labels.input}</span>
           <div className="fig-track">
-            <Tok state="target" wide>anchor</Tok>
-            {slots.slice(1).map((i) => <Tok key={i} state="mask" wide>mask</Tok>)}
+            <Tok state="target" wide>{labels.anchor}</Tok>
+            {slots.slice(1).map((i) => <Tok key={i} state="mask" wide>{labels.mask}</Tok>)}
           </div>
         </div>
         <div className="fig-row">
-          <span className="fig-row__label">one forward pass</span>
+          <span className="fig-row__label">{labels.pass}</span>
           <div className="fig-track">
-            <Tok state={step >= 1 ? 'target' : undefined} wide>anchor</Tok>
+            <Tok state={step >= 1 ? 'target' : undefined} wide>{labels.anchor}</Tok>
             {slots.slice(1).map((i) => (
-              <Tok key={i} state={step >= 1 ? 'draft' : undefined} wide>draft {i}</Tok>
+              <Tok key={i} state={step >= 1 ? 'draft' : undefined} wide>{labels.draft} {i}</Tok>
             ))}
           </div>
         </div>
         <div className="fig-hr" />
         <div className="fig-row">
-          <span className="fig-row__label">target K/V</span>
+          <span className="fig-row__label">{labels.kv}</span>
           <div className="fig-track">
-            {['layer 1', 'layer 2', 'layer 3', 'layer N'].map((l, i) => (
-              <Tok key={l} state={step >= 2 ? 'draft' : undefined}>target K/V + {l}</Tok>
+            {(labels.layers || []).map((l) => (
+              <Tok key={l} state={step >= 2 ? 'draft' : undefined}>{l}</Tok>
             ))}
           </div>
         </div>
       </div>
-      <p className="fig-note">
-        {step === 0 && 'Position 0 is a token the target model already confirmed. The rest are masked.'}
-        {step === 1 && 'One draft-network pass fills every masked position together.'}
-        {step === 2 && 'The fused target context enters every draft layer as extra Key and Value, not only at the input.'}
-      </p>
-      <Controls step={step} {...c} caption="DFlash draft block" />
+      <p className="fig-note">{rich(noteAt(notes, step))}</p>
+      <Controls step={step} {...c} caption={caption} />
     </div>
   )
 }
@@ -253,47 +239,43 @@ export function DFlashBlock() {
 /* ------------------------------------------------------------------ */
 /* EAGLE-3: three target layers fused, then autoregressive drafting.   */
 /* ------------------------------------------------------------------ */
-export function Eagle3Fuse() {
+export function Eagle3Fuse({ caption, notes, labels = {} }) {
   const { step, ...c } = useSteps(4, 1000)
   return (
     <div className="fig">
       <div className="fig-stage">
         <div className="fig-row">
-          <span className="fig-row__label">target layers</span>
+          <span className="fig-row__label">{labels.layers}</span>
           <div className="fig-track">
-            {['early', 'middle', 'late'].map((l) => (
-              <Tok key={l} state={step >= 0 ? 'done' : undefined} wide>{l} hidden</Tok>
+            {(labels.stages || []).map((l) => (
+              <Tok key={l} state={step >= 0 ? 'done' : undefined} wide>{l}</Tok>
             ))}
           </div>
         </div>
         <div className="fig-row">
-          <span className="fig-row__label">fuse</span>
+          <span className="fig-row__label">{labels.fuse}</span>
           <div className="fig-track">
-            <Tok state={step >= 1 ? 'draft' : undefined}>concat + projection</Tok>
+            <Tok state={step >= 1 ? 'draft' : undefined}>{labels.concat}</Tok>
             <span className="fig-sep">→</span>
-            <Tok state={step >= 1 ? 'draft' : undefined}>fused target feature</Tok>
+            <Tok state={step >= 1 ? 'draft' : undefined}>{labels.feature}</Tok>
             <span className="fig-sep">+</span>
-            <Tok state={step >= 1 ? 'draft' : undefined}>sampled-token embedding</Tok>
+            <Tok state={step >= 1 ? 'draft' : undefined}>{labels.embedding}</Tok>
           </div>
         </div>
         <div className="fig-hr" />
         <div className="fig-row">
-          <span className="fig-row__label">draft decoder</span>
+          <span className="fig-row__label">{labels.decoder}</span>
           <div className="fig-track">
-            <Tok state={step >= 2 ? 'draft' : undefined}>draft 1</Tok>
+            <Tok state={step >= 2 ? 'draft' : undefined}>{labels.draft} 1</Tok>
             <span className="fig-sep">→</span>
-            <Tok state={step >= 3 ? 'draft' : undefined}>draft 2</Tok>
+            <Tok state={step >= 3 ? 'draft' : undefined}>{labels.draft} 2</Tok>
             <span className="fig-sep">→</span>
-            <Tok state={step >= 3 ? 'draft' : undefined}>draft 3</Tok>
+            <Tok state={step >= 3 ? 'draft' : undefined}>{labels.draft} 3</Tok>
           </div>
         </div>
       </div>
-      <p className="fig-note">
-        {step <= 1 && 'EAGLE-3 concatenates hidden states from three stages of the target forward pass into one feature.'}
-        {step === 2 && 'The fused feature and the sampled-token embedding give the first draft token.'}
-        {step === 3 && 'Later positions have no target hidden state yet, so each one feeds the previous draft output back in.'}
-      </p>
-      <Controls step={step} {...c} caption="EAGLE-3 drafting" />
+      <p className="fig-note">{rich(noteAt(notes, step))}</p>
+      <Controls step={step} {...c} caption={caption} />
     </div>
   )
 }
@@ -301,20 +283,20 @@ export function Eagle3Fuse() {
 /* ------------------------------------------------------------------ */
 /* DSpark: parallel backbone, then a left-to-right Markov correction.  */
 /* ------------------------------------------------------------------ */
-export function DSparkHead() {
+export function DSparkHead({ caption, notes, labels = {} }) {
   const { step, ...c } = useSteps(5, 900)
-  const picks = ['of', 'course', ',', 'sure']
+  const picks = labels.picks || []
   return (
     <div className="fig">
       <div className="fig-stage">
         <div className="fig-row">
-          <span className="fig-row__label">parallel backbone</span>
+          <span className="fig-row__label">{labels.backbone}</span>
           <div className="fig-track">
-            {picks.map((_, i) => <Tok key={i} state={step >= 1 ? 'draft' : undefined} wide>base logits {i + 1}</Tok>)}
+            {picks.map((_, i) => <Tok key={i} state={step >= 1 ? 'draft' : undefined} wide>{labels.base} {i + 1}</Tok>)}
           </div>
         </div>
         <div className="fig-row">
-          <span className="fig-row__label">markov head</span>
+          <span className="fig-row__label">{labels.markov}</span>
           <div className="fig-track">
             {picks.map((t, i) => (
               <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: '.45rem' }}>
@@ -325,11 +307,8 @@ export function DSparkHead() {
           </div>
         </div>
       </div>
-      <p className="fig-note">
-        {step === 0 && 'A fully parallel block can mix two good continuations into one bad one — "of course" and "no problem" become "of problem".'}
-        {step >= 1 && 'One backbone pass gives every position its base logits; the lightweight head then biases each position with the token already selected before it.'}
-      </p>
-      <Controls step={step} {...c} caption="DSpark sequential correction" />
+      <p className="fig-note">{rich(noteAt(notes, step))}</p>
+      <Controls step={step} {...c} caption={caption} />
     </div>
   )
 }
@@ -339,7 +318,7 @@ export function DSparkHead() {
 /* ------------------------------------------------------------------ */
 const DATASETS = ['GSM8K', 'MATH500', 'HumanEval', 'MBPP']
 const TONE = {
-  Baseline: 'var(--dim)',
+  baseline: 'var(--dim)',
   'Gemma 4 MTP': 'var(--accent)',
   'Native MTP': 'var(--accent)',
   'EAGLE-3': 'var(--cool)',
@@ -383,7 +362,7 @@ const ROWS = [
 
 const TARGETS = [...new Set(ROWS.map((r) => r.target))]
 
-export function ThroughputChart() {
+export function ThroughputChart({ note, baseline = 'Baseline' }) {
   const [target, setTarget] = useState(TARGETS[0])
   const [shown, setShown] = useState(false)
 
@@ -395,7 +374,7 @@ export function ThroughputChart() {
   }, [target])
 
   const series = [
-    { method: 'Baseline', throughputs: BASELINE[target], speedups: null, n: null },
+    { method: baseline, throughputs: BASELINE[target], speedups: null, n: null },
     ...ROWS.filter((r) => r.target === target),
   ]
   const max = Math.max(...series.flatMap((s) => s.throughputs))
@@ -412,7 +391,7 @@ export function ThroughputChart() {
           <div className="fig-group" key={ds}>
             <div className="fig-bars">
               {series.map((s, i) => (
-                <div className="fig-bar" key={s.method} style={{ '--tone': TONE[s.method], '--i': i }}>
+                <div className="fig-bar" key={s.method} style={{ '--tone': TONE[s.method] || TONE.baseline, '--i': i }}>
                   <span className="fig-bar__val">{s.speedups ? `${s.speedups[d].toFixed(2)}×` : '1.00×'}</span>
                   <span
                     className="fig-bar__fill"
@@ -428,15 +407,12 @@ export function ThroughputChart() {
       </div>
       <div className="fig-legend">
         {series.map((s) => (
-          <span key={s.method} style={{ '--tone': TONE[s.method] }}>
+          <span key={s.method} style={{ '--tone': TONE[s.method] || TONE.baseline }}>
             <i />{s.method}{s.n ? ` · N=${s.n}` : ''}
           </span>
         ))}
       </div>
-      <p className="fig-note">
-        Output throughput, tok/s, against the non-speculative baseline. MI300X and MI355X, ROCm.
-        Pick a target model.
-      </p>
+      <p className="fig-note">{rich(note)}</p>
     </div>
   )
 }
@@ -500,24 +476,17 @@ export function TitleArt() {
 /* Causal mask: the four speculative positions in one pass, each one   */
 /* still reading only its own prefix.                                  */
 /* ------------------------------------------------------------------ */
-export function CausalMask() {
+export function CausalMask({ caption, notes, labels = {} }) {
   const { step, ...c } = useSteps(5, 1100)
-  const toks = ['Paris', 'and', 'it', 'is']
-  const notes = [
-    'Four proposed tokens enter the target model together.',
-    'Position 1 reads the context only.',
-    'Position 2 adds Paris.',
-    'Position 3 adds and. It still cannot see is.',
-    'Row by row the mask rebuilds the autoregressive order inside one pass.',
-  ]
+  const toks = labels.tokens || []
   const rows = step - 1
   return (
     <div className="fig">
       <div className="fig-stage">
         <div className="fig-row">
-          <span className="fig-row__label">one pass</span>
+          <span className="fig-row__label">{labels.pass}</span>
           <div className="fig-track">
-            <Tok state="done">context</Tok>
+            <Tok state="done">{labels.context}</Tok>
             <span className="fig-sep">+</span>
             {toks.map((t, i) => (
               <Tok key={t} state={step > 0 ? 'draft' : undefined} now={i === rows}>{t}</Tok>
@@ -543,8 +512,8 @@ export function CausalMask() {
           ))}
         </div>
       </div>
-      <p className="fig-note">{notes[step]}</p>
-      <Controls step={step} {...c} caption="Causal mask" />
+      <p className="fig-note">{rich(noteAt(notes, step))}</p>
+      <Controls step={step} {...c} caption={caption} />
     </div>
   )
 }
@@ -552,44 +521,38 @@ export function CausalMask() {
 /* ------------------------------------------------------------------ */
 /* One forward pass gives one distribution per position, shifted left. */
 /* ------------------------------------------------------------------ */
-export function OnePassLogits() {
+export function OnePassLogits({ caption, notes, labels = {} }) {
   const { step, ...c } = useSteps(4, 1200)
-  const inputs = ['is', 'Paris', 'and', 'it']
-  const preds = ['Paris', 'and', 'it', 'is']
-  const notes = [
-    'The last context token and the first three proposals go in.',
-    'The transformer emits a hidden state at every position.',
-    'The same LM head turns each hidden state into vocabulary logits.',
-    'Softmax gives four distributions, each one shifted: the probability of a token comes from the position before it.',
-  ]
+  const inputs = labels.inputs || []
+  const preds = labels.predicts || []
   return (
     <div className="fig">
       <div className="fig-stage">
         <div className="fig-row">
-          <span className="fig-row__label">input</span>
+          <span className="fig-row__label">{labels.input}</span>
           <div className="fig-track">{inputs.map((t) => <Tok key={t} state="done" wide>{t}</Tok>)}</div>
         </div>
         <div className="fig-row">
-          <span className="fig-row__label">hidden state</span>
+          <span className="fig-row__label">{labels.hidden}</span>
           <div className="fig-track">
             {inputs.map((t, i) => <Tok key={t} state={step >= 1 ? 'draft' : undefined} wide>h{i + 1}</Tok>)}
           </div>
         </div>
         <div className="fig-row">
-          <span className="fig-row__label">lm head</span>
+          <span className="fig-row__label">{labels.head}</span>
           <div className="fig-track">
-            {inputs.map((t) => <Tok key={t} state={step >= 2 ? 'target' : undefined} wide>logits</Tok>)}
+            {inputs.map((t) => <Tok key={t} state={step >= 2 ? 'target' : undefined} wide>{labels.logits}</Tok>)}
           </div>
         </div>
         <div className="fig-row">
-          <span className="fig-row__label">softmax</span>
+          <span className="fig-row__label">{labels.softmax}</span>
           <div className="fig-track">
             {preds.map((t) => <Tok key={t} state={step >= 3 ? 'ok' : undefined} wide>P({t})</Tok>)}
           </div>
         </div>
       </div>
-      <p className="fig-note">{notes[step]}</p>
-      <Controls step={step} {...c} caption="One pass, four distributions" />
+      <p className="fig-note">{rich(noteAt(notes, step))}</p>
+      <Controls step={step} {...c} caption={caption} />
     </div>
   )
 }
@@ -607,14 +570,8 @@ const BarPair = ({ label, q, p, on }) => (
   </div>
 )
 
-export function AcceptSample() {
+export function AcceptSample({ caption, notes, labels = {} }) {
   const { step, ...c } = useSteps(4, 1400)
-  const notes = [
-    'The draft gives q, the target gives p, for the same proposed token.',
-    'Accept with probability min(1, p / q). Here 0.30 / 0.40 = 0.75.',
-    'If the target likes the token at least as much as the draft did, acceptance is certain.',
-    'On a rejection the target samples from max(0, p − q), normalised. A is already spent, so B and C split the mass.',
-  ]
   return (
     <div className="fig">
       <div className="fig-stage">
@@ -623,15 +580,15 @@ export function AcceptSample() {
         <BarPair label="C" q={0.2} p={0.3} on={step >= 0} />
         <div className="fig-hr" />
         <div className="fig-row">
-          <span className="fig-row__label">draft proposes</span>
+          <span className="fig-row__label">{labels.proposes}</span>
           <div className="fig-track">
             <Tok state={step >= 1 ? (step >= 3 ? 'bad' : 'draft') : undefined} wide>A</Tok>
-            <span className="fig-sep">accept with</span>
-            <Tok state={step >= 1 ? 'target' : undefined} wide>min(1, p/q)</Tok>
+            <span className="fig-sep">{labels.acceptWith}</span>
+            <Tok state={step >= 1 ? 'target' : undefined} wide>{labels.rule}</Tok>
           </div>
         </div>
         <div className="fig-row">
-          <span className="fig-row__label">residual</span>
+          <span className="fig-row__label">{labels.residual}</span>
           <div className="fig-track">
             <Tok state={step >= 3 ? 'drop' : undefined} wide>A 0</Tok>
             <Tok state={step >= 3 ? 'ok' : undefined} wide>B 50%</Tok>
@@ -639,8 +596,8 @@ export function AcceptSample() {
           </div>
         </div>
       </div>
-      <p className="fig-note">{notes[step]}</p>
-      <Controls step={step} {...c} caption="Accept, or resample" />
+      <p className="fig-note">{rich(noteAt(notes, step))}</p>
+      <Controls step={step} {...c} caption={caption} />
     </div>
   )
 }
@@ -648,23 +605,16 @@ export function AcceptSample() {
 /* ------------------------------------------------------------------ */
 /* KV cache: accepted speculative entries stay, the rest are dropped.  */
 /* ------------------------------------------------------------------ */
-export function KvCommit() {
+export function KvCommit({ caption, notes, labels = {} }) {
   const { step, ...c } = useSteps(5, 1200)
-  const base = ['The', 'capital', 'of', 'France', 'is']
-  const spec = ['Paris', 'and', 'it', 'is']
+  const base = labels.cached || []
+  const spec = labels.proposed || []
   const verdict = ['ok', 'ok', 'bad', 'drop']
-  const notes = [
-    'The cache holds the accepted prefix, one K and V pair per layer per token.',
-    'The verification pass computes K and V for all four proposals at the same time.',
-    'Verification reads left to right and stops at the first rejection.',
-    'Paris and and are already processed by the target model, so their cache entries stay.',
-    'it and is are dropped. The engine moves the valid sequence length back instead of copying tensors.',
-  ]
   return (
     <div className="fig">
       <div className="fig-stage">
         <div className="fig-row">
-          <span className="fig-row__label">kv cache</span>
+          <span className="fig-row__label">{labels.cache}</span>
           <div className="fig-track">
             {base.map((t) => <Tok key={t} state="done">{t}</Tok>)}
             {spec.map((t, i) => (
@@ -677,11 +627,11 @@ export function KvCommit() {
                 now={step === 2 && i === 2}
               >{t}</Tok>
             ))}
-            {step >= 4 && <Tok state="target">the</Tok>}
+            {step >= 4 && <Tok state="target">{labels.correction}</Tok>}
           </div>
         </div>
         <div className="fig-row">
-          <span className="fig-row__label">verification</span>
+          <span className="fig-row__label">{labels.verification}</span>
           <div className="fig-track">
             {spec.map((t, i) => (
               <Tok key={t + i} state={step >= 2 ? verdict[i] : undefined} wide>
@@ -691,8 +641,8 @@ export function KvCommit() {
           </div>
         </div>
       </div>
-      <p className="fig-note">{notes[step]}</p>
-      <Controls step={step} {...c} caption="Commit and roll back" />
+      <p className="fig-note">{rich(noteAt(notes, step))}</p>
+      <Controls step={step} {...c} caption={caption} />
     </div>
   )
 }
