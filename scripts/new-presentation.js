@@ -28,7 +28,7 @@ mkdirSync(dest, { recursive: true })
 cpSync(resolve(root, 'templates/deck'), dest, { recursive: true })
 
 const today = new Date().toISOString().slice(0, 10)
-for (const file of ['index.html', 'meta.json']) {
+for (const file of ['deck.jsx', 'meta.json']) {
   const path = resolve(dest, file)
   writeFileSync(path, readFileSync(path, 'utf8').replaceAll('{{TITLE}}', title).replaceAll('{{DATE}}', today))
 }

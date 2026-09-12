@@ -3,43 +3,17 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Paper Club — Index of Presentations</title>
+    <meta name="color-scheme" content="dark" />
+    <title>Paper Club</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/src/hub/hub.css" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
   </head>
   <body>
-    <div class="grain" aria-hidden="true"></div>
-
-    <header class="masthead">
-      <div class="masthead__rule" aria-hidden="true"></div>
-      <p class="masthead__kicker">
-        <span>Volume 01</span><span class="dot">·</span><span id="issue-date">—</span><span class="dot">·</span><span>Reading group archive</span>
-      </p>
-      <h1 class="masthead__title">Paper<span class="masthead__amp">&amp;</span>Club</h1>
-      <p class="masthead__lede">
-        Every deck presented here, kept as a website instead of a file.
-        Open one below.
-      </p>
-      <div class="masthead__rule masthead__rule--thin" aria-hidden="true"></div>
-    </header>
-
-    <section class="toolbar">
-      <label class="field">
-        <span class="field__label">Search</span>
-        <input id="filter" type="search" placeholder="title, speaker, tag…" autocomplete="off" />
-      </label>
-      <p class="toolbar__count" id="deck-count"></p>
-    </section>
-
-    <main id="deck-list" class="index"></main>
-
-    <footer class="colophon">
-      <span>Built with Vite. Each deck is a static page under <code>/presentations</code>.</span>
-      <span class="colophon__mark" aria-hidden="true">◆</span>
-    </footer>
-
-    <script type="module" src="/src/hub/hub.js"></script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
