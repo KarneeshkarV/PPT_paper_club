@@ -47,9 +47,6 @@ export default function Hub() {
             <br />
             Reading<i>.</i>
           </h1>
-          <p className="lede">
-            Every deck we have presented, kept as a page you can open, not a file you must find.
-          </p>
         </header>
 
         <div className="filterbar">
@@ -104,9 +101,6 @@ export default function Hub() {
         </main>
 
         <footer className="colophon">
-          <span>
-            Built with React and Vite. Each deck lives in <code>/presentations</code>.
-          </span>
           <span className="mark" aria-hidden="true">
             ◆
           </span>

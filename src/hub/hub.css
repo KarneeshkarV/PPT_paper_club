@@ -32,10 +32,6 @@
 }
 
 .hero {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: end;
-  gap: 2rem;
   padding: clamp(3rem, 8vw, 5rem) 0 3rem;
   border-bottom: 1px solid var(--line);
   animation: rise .7s .06s cubic-bezier(.2, .7, .2, 1) both;
@@ -49,15 +45,6 @@
   font-variation-settings: "SOFT" 14, "WONK" 1;
 }
 .hero h1 i { color: var(--accent); font-style: normal; }
-.lede {
-  margin: 0;
-  max-width: 26ch;
-  color: var(--dim);
-  font-style: italic;
-  font-size: clamp(1rem, 1.5vw, 1.15rem);
-  line-height: 1.5;
-  text-align: right;
-}
 
 /* ---------- Filter ---------- */
 .filterbar {
@@ -174,7 +161,7 @@
 
 .colophon {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 1rem;
   padding: 1.5rem 0 4rem;
   font-family: var(--mono);
@@ -186,8 +173,6 @@
 .mark { color: var(--accent); }
 
 @media (max-width: 52rem) {
-  .hero { grid-template-columns: 1fr; }
-  .lede { text-align: left; }
   .card--feature { grid-column: span 1; }
   .card--feature h2 { font-size: 1.65rem; }
 }
