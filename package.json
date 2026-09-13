@@ -7,14 +7,17 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "new": "node scripts/new-presentation.js"
+    "new": "node scripts/new-presentation.js",
+    "deploy": "pnpm build && wrangler deploy",
+    "deploy:dry": "pnpm build && wrangler deploy --dry-run"
   },
   "pnpm": {
     "minimumReleaseAge": 1209600
   },
   "devDependencies": {
     "@vitejs/plugin-react": "6.1.1",
-    "vite": "8.2.2"
+    "vite": "8.2.2",
+    "wrangler": "4.127.1"
   },
   "dependencies": {
     "react": "19.2.8",
