@@ -27,15 +27,12 @@ export default function Hub() {
   // A feature card spans two columns; it only looks right once the grid has rows to fill.
   const featured = !query && decks.length >= 3
 
-  const issue = new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
-
   return (
     <>
       <div className="grain" aria-hidden="true" />
       <div className="wrap">
         <div className="rail">
           <span>Paper Club</span>
-          <span>Volume 01 - {issue}</span>
           <span>
             {folio(decks.length - 1)} {decks.length === 1 ? 'deck' : 'decks'}
           </span>
